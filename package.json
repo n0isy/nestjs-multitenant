@@ -1,11 +1,17 @@
 {
-  "name": "@nestjs-multitenant/core",
+  "name": "@nestjs-multitenant/typeorm",
   "version": "1.0.0",
   "description": "Multi-tenant TypeORM integration for NestJS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
@@ -23,7 +29,17 @@
     "database",
     "postgresql"
   ],
-  "author": "",
+  "author": {
+    "email": "n0isy2011@gmail.com",
+    "name": "Kirill Sabitov",
+    "url": "https://t.me/n0isy2011"
+  },
+  "maintainers": [
+    {
+      "name": "Claude",
+      "email": "noreply@anthropic.com"
+    }
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/n0isy/nestjs-multitenant/issues"

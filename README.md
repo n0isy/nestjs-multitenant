@@ -1,4 +1,4 @@
-# @nestjs-multitenant/core
+# @nestjs-multitenant/typeorm
 
 A simple multi-tenant library for NestJS with TypeORM that manages DataSource instances per tenant.
 
@@ -14,7 +14,7 @@ A simple multi-tenant library for NestJS with TypeORM that manages DataSource in
 ## Installation
 
 ```bash
-npm install @nestjs-multitenant/core
+npm install @nestjs-multitenant/typeorm
 ```
 
 ## Quick Start
@@ -24,7 +24,7 @@ npm install @nestjs-multitenant/core
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
-import { TenantResolver, TenantContext } from '@nestjs-multitenant/core';
+import { TenantResolver, TenantContext } from '@nestjs-multitenant/typeorm';
 
 @Injectable()
 export class HeaderTenantResolver implements TenantResolver {
@@ -45,7 +45,7 @@ export class HeaderTenantResolver implements TenantResolver {
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { DataSourceOptions } from 'typeorm';
-import { TenantConfigProvider, TenantContext } from '@nestjs-multitenant/core';
+import { TenantConfigProvider, TenantContext } from '@nestjs-multitenant/typeorm';
 
 @Injectable()
 export class DatabasePerTenantConfigProvider implements TenantConfigProvider {
@@ -68,7 +68,7 @@ export class DatabasePerTenantConfigProvider implements TenantConfigProvider {
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { MultiTenantModule } from '@nestjs-multitenant/core';
+import { MultiTenantModule } from '@nestjs-multitenant/typeorm';
 
 @Module({
   imports: [
@@ -87,7 +87,7 @@ export class AppModule {}
 ```typescript
 import { Injectable, Inject, Scope } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { InjectTenantRepository, TENANT_REPOSITORY_FACTORY, TenantRepositoryFactory } from '@nestjs-multitenant/core';
+import { InjectTenantRepository, TENANT_REPOSITORY_FACTORY, TenantRepositoryFactory } from '@nestjs-multitenant/typeorm';
 import { User } from './user.entity';
 
 @Injectable({ scope: Scope.REQUEST })
