@@ -95,8 +95,13 @@ describe('TenantDataSourceManager', () => {
       const dataSource2 = await manager.getDataSource(context2);
       
       expect(dataSource1).not.toBe(dataSource2);
-      expect(dataSource1.options.database).toBe('test_tenant_tenant1');
-      expect(dataSource2.options.database).toBe('test_tenant_tenant2');
+      
+      // Check that the connection URLs contain the correct tenant database
+      const url1 = (dataSource1.options as any).url;
+      const url2 = (dataSource2.options as any).url;
+      
+      expect(url1).toContain('test_tenant_tenant1');
+      expect(url2).toContain('test_tenant_tenant2');
     });
 
     it('should handle multiple concurrent tenant connections', async () => {
@@ -148,6 +153,28 @@ describe('TenantDataSourceManager', () => {
       expect((dataSource.options as any).extra.customOption).toBe('test');
       
       await customManager.closeAll();
+    });
+
+    it('should log debug messages when debug mode is enabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      
+      const debugManager = new TenantDataSourceManager(
+        {
+          ...moduleOptions,
+          debug: true,
+        },
+        configProvider,
+      );
+      
+      const context: TenantContext = { tenantId: 'debug-tenant' };
+      await debugManager.getDataSource(context);
+      
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[MultiTenant] Created DataSource for tenant: debug-tenant'
+      );
+      
+      consoleSpy.mockRestore();
+      await debugManager.closeAll();
     });
   });
 

@@ -1,9 +1,7 @@
 # Compiled output
 dist/
 build/
-*.js
-*.js.map
-*.d.ts
+coverage
 
 # Dependencies
 node_modules/
@@ -19,3 +17,4 @@ node_modules/
 .mcp.json
 .memory.json
 CLAUDE.md
+.claude

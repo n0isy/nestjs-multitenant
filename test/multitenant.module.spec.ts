@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, Injectable, Module, Scope, Inject } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { Pg, getPostgres } from './tools/get-postgres';
+import { MultiPg, getMultiPostgres } from './tools/get-multi-postgres';
 import { MultiTenantModule } from '../src/multitenant.module';
 import { 
   InjectTenantRepository, 
@@ -14,13 +14,13 @@ import { TestUser } from './entities/test-user.entity';
 import { TestProduct } from './entities/test-product.entity';
 import { 
   TestTenantResolver, 
-  TestDatabaseConfigProvider,
   createMockRequest,
   TenantConfigProvider,
 } from './utils/test-helpers';
-import { createTestDatabases, cleanupTestDatabases } from './utils/database-setup';
+import { TestMultiInstanceConfigProvider } from './utils/test-helpers-multi';
 import { DataSourceOptions } from 'typeorm';
 import { TenantContext } from '../src/interfaces';
+import { LogLevel } from './tools/pglite-server';
 
 // Test service using decorators
 @Injectable({ scope: Scope.REQUEST })
@@ -68,31 +68,23 @@ class TestUserService {
 class TestAppModule {}
 
 describe('MultiTenantModule Integration', () => {
-  let pg: Pg;
+  let multiPg: MultiPg;
   let app: INestApplication;
   let moduleRef: TestingModule;
-  let configProvider: TestDatabaseConfigProvider;
+  let configProvider: TestMultiInstanceConfigProvider;
   const testTenants = ['tenant1', 'tenant2', 'tenant3'];
 
-  beforeAll(async () => {
-    pg = await getPostgres();
-    await createTestDatabases(pg, testTenants);
-  }, 30000);
-
-  afterAll(async () => {
-    await cleanupTestDatabases(pg, testTenants);
-    await pg.teardown();
-  }, 30000);
-
   beforeEach(async () => {
-    configProvider = new TestDatabaseConfigProvider(
-      pg.connectionString,
+    // Create fresh PostgreSQL instances for each test
+    multiPg = await getMultiPostgres(testTenants, LogLevel.Error);
+    configProvider = new TestMultiInstanceConfigProvider(
+      multiPg,
       [TestUser, TestProduct]
     );
 
     // Create a custom config provider class for this test
     @Injectable()
-    class TestConfigProviderWithConnection implements TenantConfigProvider {
+    class TestConfigProviderWithMultiInstance implements TenantConfigProvider {
       getTenantConfig(context: TenantContext): DataSourceOptions {
         return configProvider.getTenantConfig(context);
       }
@@ -102,7 +94,7 @@ describe('MultiTenantModule Integration', () => {
       imports: [
         MultiTenantModule.forRoot({
           tenantResolver: TestTenantResolver,
-          configProvider: TestConfigProviderWithConnection,
+          configProvider: TestConfigProviderWithMultiInstance,
           debug: false,
           defaultDataSourceOptions: {
             entities: [TestUser, TestProduct],
@@ -122,12 +114,23 @@ describe('MultiTenantModule Integration', () => {
       await dataSourceManager.closeAll();
       await app.close();
     }
+    
+    // Teardown all PostgreSQL instances after each test
+    if (multiPg) {
+      await multiPg.teardown();
+    }
   });
 
   describe('Module Setup', () => {
-    it('should register all providers globally', () => {
+    it('should register all providers globally', async () => {
       expect(moduleRef.get(TENANT_DATASOURCE_MANAGER)).toBeDefined();
-      expect(moduleRef.get(TENANT_REPOSITORY_FACTORY)).toBeDefined();
+      
+      // TENANT_REPOSITORY_FACTORY is request-scoped, so we need to use resolve
+      const contextId = { id: 1 };
+      moduleRef.registerRequestByContextId(createMockRequest('test'), contextId);
+      const repositoryFactory = await moduleRef.resolve(TENANT_REPOSITORY_FACTORY, contextId);
+      expect(repositoryFactory).toBeDefined();
+      
       expect(moduleRef.get('TENANT_RESOLVER')).toBeDefined();
       expect(moduleRef.get('TENANT_CONFIG_PROVIDER')).toBeDefined();
     });
@@ -143,7 +146,7 @@ describe('MultiTenantModule Integration', () => {
   });
 
   describe('Multi-tenant Operations', () => {
-    it('should isolate data between tenants', async () => {
+    it('should properly isolate data between tenants', async () => {
       // Create request-scoped providers for different tenants
       const contextId1 = { id: 1 };
       const contextId2 = { id: 2 };
@@ -164,7 +167,7 @@ describe('MultiTenantModule Integration', () => {
       await service2.createUser('user2@tenant2.com', 'User 2');
       await service2.createUser('user3@tenant2.com', 'User 3');
 
-      // Verify isolation
+      // Verify isolation - each tenant should only see its own data
       const users1 = await service1.findAllUsers();
       const users2 = await service2.findAllUsers();
 
@@ -298,9 +301,10 @@ describe('MultiTenantModule Integration', () => {
       const contextId = { id: 1 };
       moduleRef.registerRequestByContextId(createMockRequest(''), contextId);
       
-      await expect(
-        moduleRef.resolve(TestUserService, contextId)
-      ).rejects.toThrow('Tenant ID not found in headers');
+      const service = await moduleRef.resolve(TestUserService, contextId);
+      
+      // The error should occur when trying to access the repository
+      await expect(service.findAllUsers()).rejects.toThrow('Tenant ID not found in headers');
     });
 
     it('should handle database connection errors gracefully', async () => {

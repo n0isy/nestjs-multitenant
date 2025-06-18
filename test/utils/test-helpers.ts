@@ -33,7 +33,7 @@ export class TestTenantResolver implements TenantResolver {
   resolveTenant(request: Request): TenantContext {
     const tenantId = request.headers['x-tenant-id'] as string;
     
-    if (!tenantId) {
+    if (!tenantId || tenantId.trim() === '') {
       throw new Error('Tenant ID not found in headers');
     }
 
@@ -57,10 +57,16 @@ export class TestDatabaseConfigProvider implements TenantConfigProvider {
   ) {}
 
   getTenantConfig(context: TenantContext): DataSourceOptions {
+    // Parse the base connection string to build tenant-specific URL
+    const baseUrl = new URL(this.connectionString);
+    const tenantDatabase = `test_tenant_${context.tenantId}`;
+    
+    // Build a new connection string with the tenant database
+    const tenantUrl = `${baseUrl.protocol}//${baseUrl.username}:${baseUrl.password}@${baseUrl.host}/${tenantDatabase}`;
+    
     return {
       type: 'postgres',
-      url: this.connectionString,
-      database: `test_tenant_${context.tenantId}`,
+      url: tenantUrl,
       entities: this.entities,
       synchronize: true,
       logging: false,
