@@ -15,3 +15,7 @@ node_modules/
 *.swp
 .DS_Store
 
+# Project-specific files
+.mcp.json
+.memory.json
+CLAUDE.md
