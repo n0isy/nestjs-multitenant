@@ -1,0 +1,17 @@
+# Compiled output
+dist/
+build/
+*.js
+*.js.map
+*.d.ts
+
+# Dependencies
+node_modules/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.log
+*.swp
+.DS_Store
+
